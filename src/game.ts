@@ -10,9 +10,25 @@ export class Game {
         this.frame.subscribe(this.physics.bind(this));
         this.frame.subscribe(this.draw.bind(this));
 
+        let block = new GameObject({
+            position: {x: 0, y: -this.size.halfHeight + 100},
+            velocity: {x: 0, y: 0},
+            boundingBox: new Rect({width: 1500, height: 50}),
+            render: (obj) => {
+                this.ctx.fillStyle = '#f44242';
+                this.ctx.shadowBlur = 15;
+                this.ctx.shadowColor = '#aaaaaa';
+                this.ctx.shadowOffsetY = 8;
+                this.ctx.fillRect(obj.position.x - 750, obj.position.y - 25, 1500, 50);
+
+                obj.drawBoundingBox(this.ctx);
+            },
+            physics: this.wallBounce.bind(this)
+        });
+
         let ball = new GameObject({
             position: {x: 0, y: 0},
-            velocity: {x: (Math.random()-.5)*1, y: (Math.random()-.5)*1},
+            velocity: {x: (Math.random()-.5)*5, y: (Math.random()-.5)*5},
             boundingBox: new Rect({ width: 50, height: 50 }),
             render: (obj) => {
                 this.ctx.beginPath();
@@ -27,22 +43,24 @@ export class Game {
                 obj.drawBoundingBox(this.ctx);
             },
             physics: (obj) => {
-                let mesh = obj.boundingBox.mesh;
-                for(let i = 0; i < mesh.length; i++) {
-                    let point = mesh[i];
-                    let p = { x: point.x + obj.position.x, y: point.x + obj.position.y };
-
+                this.wallBounce(obj);
+                this.collisionDetection(obj);
+            },
+            onCollision: (hit) => {
+                console.log('hit!');
+                if(hit.colliderHits.some(h => h.x > hit.collider.position.x)) {
+                    hit.collider.velocity.x *= -1;
                 }
-
-                obj.boundingBox.mesh.forEach(point => {
-
-                });
+                if(hit.colliderHits.some(h => h.y > hit.collider.position.y)) {
+                    hit.collider.velocity.y *= -1;
+                }
             },
             props: {
                 radius: 25
             }
         });
 
+        this.gameObjects.push(block);
         this.gameObjects.push(ball);
     
     }
@@ -80,8 +98,68 @@ export class Game {
         });
     }
 
-    collisionDetection(obj: GameObject<any>) {
+    collisionDetection<T>(obj: GameObject<T>) {
+        for(let i = 0; i < this.gameObjects.length; i++) {
+            let colObj = this.gameObjects[i];
+            let mesh = obj.boundingBox.mesh;
+            let colMesh = obj.boundingBox.mesh;
+            for(let j = 0; j < colMesh.length - 1 ; j++) {
+                let p1 = colMesh[j];
+                let p2 = colMesh[j + 1];
+                let hits = [] as Vector2[];
+                let colHits = [] as Vector2[];
+                for(let k = 0; k < mesh.length; k++) {
+                    let p3 = mesh[k];
+                    let res = -(p2.y - p1.y) * p3.x + (p2.x - p1.x) + p3.y + -(-(p2.y - p1.y) * p1.x + (p2.x - p1.x) * p1.y);
+                    if (res = 0) {
+                        hits.push(p3);
+                        colHits.push(p1, p2);
+                    }
+                }
+                if (hits.length > 0) {
+                    let hit = new CollisionHit({
+                        collider: obj,
+                        collidi: colObj,
+                        colliderHits: hits,
+                        collidiHits: colHits
+                    });
+                    colObj.onCollision(hit);
+                    obj.onCollision(hit);
+                    break;
+                }
+            }
+        }
+    }
 
+    wallBounce<T>(obj: GameObject<T>) {
+        let mesh = obj.boundingBox.mesh;
+        for(let i = 0; i < mesh.length; i++) {
+            let hit = false;
+            let point = mesh[i];
+            let p = { x: point.x + obj.position.x, y: point.x + obj.position.y };
+            if(p.x >= this.size.halfWidth || p.x <= -this.size.halfWidth) {
+                obj.velocity.x *= -1;
+                hit = true;
+            }
+            
+            if(p.y >= this.size.halfHeight || p.y <= -this.size.halfHeight) {
+                obj.velocity.y *= -1;
+                hit = true;
+            }
+
+            if (hit) { break; }
+        }
+    }
+}
+
+export class CollisionHit<T, U> {
+    public collider: GameObject<T>;
+    public collidi: GameObject<T>;
+    public colliderHits: Vector2[] = [];
+    public collidiHits: Vector2[] = [];
+
+    constructor(args: Partial<CollisionHit<T, U>>) {
+        Object.assign(this, args);
     }
 }
 
@@ -124,6 +202,7 @@ export class GameObject<T> {
 
     public render: (obj: GameObject<T>) => void;
     public physics: (obj: GameObject<T>) => void = () => {};
+    public onCollision?: <U, V>(hit: CollisionHit<U, V>) => void = () => {};
 
     constructor(args: Partial<GameObject<T>>) {
         Object.assign(this, args);
