@@ -27,9 +27,15 @@ export class Game {
                 obj.drawBoundingBox(this.ctx);
             },
             physics: (obj) => {
-                obj.boundingBox.mesh.forEach(point => {
+                let mesh = obj.boundingBox.mesh;
+                for(let i = 0; i < mesh.length; i++) {
+                    let point = mesh[i];
                     let p = { x: point.x + obj.position.x, y: point.x + obj.position.y };
-                    
+
+                }
+
+                obj.boundingBox.mesh.forEach(point => {
+
                 });
             },
             props: {
