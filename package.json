@@ -1,0 +1,24 @@
+{
+  "name": "breakout",
+  "version": "1.0.0",
+  "description": "Atari Breakout",
+  "main": "index.js",
+  "scripts": {
+    "build": "webpack",
+    "serve": "webpack-dev-server"
+  },
+  "author": "Devyn Cyphers",
+  "license": "ISC",
+  "devDependencies": {
+    "awesome-typescript-loader": "5.0.0-1",
+    "babel": "^6.23.0",
+    "html-webpack-plugin": "^3.0.6",
+    "typescript": "^2.7.2",
+    "webpack": "^4.1.1",
+    "webpack-cli": "^2.0.11",
+    "webpack-dev-server": "^3.1.1"
+  },
+  "dependencies": {
+    "rxjs": "^5.5.6"
+  }
+}
