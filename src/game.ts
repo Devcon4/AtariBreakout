@@ -44,7 +44,7 @@ export class Game {
         }
     });
     
-    block = <T extends {color: string, pointValue: number}>(override: Partial<GameObject<T>>) => new GameObject({
+    block = <U>(override: U) => new GameObject({
         position: { x: 0, y: 0 },
         velocity: { x: 0, y: 0 },
         boundingBox: new Rect({ width: 150, height: 50 }),
@@ -68,8 +68,9 @@ export class Game {
             color: '',
             pointValue: 23
         },
-        ...override,        
-    });
+    },
+    override
+);
 
     scoreboard = () => new GameObject({ 
         position: { x: this.size.halfWidth - 50, y: this.size.halfHeight - 25 },
@@ -284,8 +285,8 @@ export class GameObject<T> {
     public physics: (obj: GameObject<T>) => void = () => { };
     public onCollision?: <U>(hit: CollisionHit<U, T>) => void = () => { };
 
-    constructor(args: Partial<GameObject<T>>) {
-        Object.assign(this, args);
+    constructor(...args: Partial<GameObject<T>>[]) {
+        Object.assign(this, ...args);
         this.render.bind(this);
     }
 
