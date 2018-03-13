@@ -1,9 +1,12 @@
 import { Scheduler, Observable } from "rxjs";
 
+type RecursivePartial<T> = { [P in keyof T]?: RecursivePartial<T[P]> };
+
 export class Game {
     frame = Observable.interval(0, Scheduler.animationFrame);
     size: { width: number, height: number, halfWidth: number, halfHeight: number };
     gameObjects: GameObject<any>[] = [];
+    scoreboardObject: GameObject<{ score: any; }>;
 
     ball = () => new GameObject({
         position: { x: 0, y: 0 },
@@ -11,6 +14,7 @@ export class Game {
         // velocity: { x: 0, y: 5 },
         boundingBox: new Rect({ width: 50, height: 50 }),
         render: (obj) => {
+            this.ctx.save();
             this.ctx.beginPath();
             this.ctx.fillStyle = '#636262';
             this.ctx.shadowBlur = 15;
@@ -19,7 +23,7 @@ export class Game {
             this.ctx.arc(obj.position.x, obj.position.y, obj.props.radius, 0, 360);
             this.ctx.closePath();
             this.ctx.fill();
-
+            this.ctx.restore();
             // obj.drawBoundingBox(this.ctx);
         },
         physics: (obj) => {
@@ -40,28 +44,48 @@ export class Game {
         }
     });
     
-    block = <T extends {color: string}>(override: Partial<GameObject<T>>) => new GameObject({
+    block = <T extends {color: string, pointValue: number}>(override: Partial<GameObject<T>>) => new GameObject({
         position: { x: 0, y: 0 },
         velocity: { x: 0, y: 0 },
         boundingBox: new Rect({ width: 150, height: 50 }),
         render: (obj) => {
+            this.ctx.save();
             this.ctx.fillStyle = obj.props.color;
             this.ctx.shadowBlur = 15;
             this.ctx.shadowColor = '#aaaaaa';
             this.ctx.shadowOffsetY = 8;
             this.ctx.fillRect(obj.position.x - 75 + 4, obj.position.y - 25 + 4, 150 - 8, 50 - 8);
-
+            this.ctx.restore();
             // obj.drawBoundingBox(this.ctx);
         },
         physics: this.wallBounce.bind(this),
         onCollision: (hit) => {
             console.log('Hit block!');
             this.gameObjects = this.gameObjects.filter(g => g !== hit.collidi);
+            this.scoreboardObject.props.score += hit.collidi.props.pointValue;
         },
         props: {
-            color: ''
+            color: '',
+            pointValue: 23
         },
         ...override,        
+    });
+
+    scoreboard = () => new GameObject({ 
+        position: { x: this.size.halfWidth - 50, y: this.size.halfHeight - 25 },
+        velocity: {x:0, y:0},
+        render: (obj) => {
+            this.ctx.save();
+            let fontArgs = this.ctx.font.split(' ');
+            this.ctx.font = `18px ${fontArgs.pop()}`;
+            this.ctx.fillStyle = '#7f7f7f';
+            
+            this.ctx.fillText(obj.props.score.toString(), obj.position.x, obj.position.y);
+            this.ctx.restore();
+        },
+        props: {
+            score: 0
+        }
     });
 
     constructor(private canvas: HTMLCanvasElement, private ctx: CanvasRenderingContext2D) {
@@ -69,6 +93,9 @@ export class Game {
         this.frame.subscribe(this.physics.bind(this));
         this.frame.subscribe(this.draw.bind(this));
 
+        this.scoreboardObject = this.scoreboard();
+
+        this.gameObjects.push(this.scoreboardObject);
         this.gameObjects.push(this.ball());
         this.placeBlocks(5);
 
@@ -108,8 +135,9 @@ export class Game {
     }
 
     collisionDetection<T>(obj: GameObject<T>) {
-        for (let i = 0; i < this.gameObjects.length; i++) {
-            let colObj = this.gameObjects[i];
+        let physicsObjects = this.gameObjects.filter(g => !!g.boundingBox);
+        for (let i = 0; i < physicsObjects.length; i++) {
+            let colObj = physicsObjects[i];
             if (colObj != obj) {
                 let a = {
                     left: obj.position.x - obj.boundingBox.width * 0.5,
@@ -146,8 +174,8 @@ export class Game {
                         collidiHits: colHits
                     });
                     
-                    colObj.onCollision(hit);
-                    obj.onCollision(hit);
+                    colObj.onCollision.bind(this)(hit);
+                    obj.onCollision.bind(this)(hit);
                 }
             }
         }
@@ -187,7 +215,7 @@ export class Game {
         for (let y = 0; y < rows * cellSize.y; y += cellSize.y) {
             let color = colors.shift();
             for (let x = -this.size.halfWidth + (cellSize.x / 2) + this.size.width % cellSize.x/2; x < this.size.halfWidth; x += cellSize.x) {
-                this.gameObjects.push(this.block({position: { x: x, y: y + -this.size.halfHeight + (rows * cellSize.y)/6 }, props: { color: color}}));
+                this.gameObjects.push(this.block({position: { x: x, y: y + -this.size.halfHeight + (rows * cellSize.y)/6 }, props: { color: color, pointValue: 23 }}));
             }
         }
     }
@@ -206,7 +234,7 @@ export class BoxHits {
 
 export class CollisionHit<T, U> {
     public collider: GameObject<T>;
-    public collidi: GameObject<T>;
+    public collidi: GameObject<U>;
     public colliderHits: BoxHits;
     public collidiHits: BoxHits;
 
@@ -254,7 +282,7 @@ export class GameObject<T> {
 
     public render: (obj: GameObject<T>) => void;
     public physics: (obj: GameObject<T>) => void = () => { };
-    public onCollision?: <U, V>(hit: CollisionHit<U, V>) => void = () => { };
+    public onCollision?: <U>(hit: CollisionHit<U, T>) => void = () => { };
 
     constructor(args: Partial<GameObject<T>>) {
         Object.assign(this, args);
