@@ -8,7 +8,17 @@
       sessionStorage.redirect = location.href;
     </script>
     <meta http-equiv="refresh" content="0;URL='https://devcon4.github.io/FactorioCad/'"></meta>
+    <script>
+      // See http://www.backalleycoder.com/2016/05/13/sghpa-the-single-page-app-hack-for-github-pages/
+      (function(){
+        var redirect = sessionStorage.redirect;
+        delete sessionStorage.redirect;
+        if (redirect && redirect != location.href) {
+          history.replaceState(null, null, redirect);
+        }
+      })();
+    </script>
   </head>
   <body>
-  <script type="text/javascript" src="http://localhost:3000/main.js"></script></body>
+  </body>
 </html>
