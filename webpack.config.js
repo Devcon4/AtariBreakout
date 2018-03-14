@@ -31,8 +31,10 @@ module.exports = {
       ]
     },
     plugins: [
+        new HtmlWebpackPlugin(),
         new HtmlWebpackPlugin({
-            template: 'index.html'
+          filename: '404.html',
+          template: './404.html'
         })
     ]
   };
